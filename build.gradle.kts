@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "me.clip"
-version = "2.11.7-DEV-folia"
+version = "2.11.7-DEV-${System.getProperty("BUILD_NUMBER")}"
 
 description = "An awesome placeholder provider!"
 
@@ -18,17 +18,18 @@ repositories {
     mavenCentral()
     mavenLocal()
 
+    maven("https://repo.codemc.org/repository/maven-public/")
+    maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://nexuslite.gcnt.net/repos/other/")
 }
 
 dependencies {
     implementation("org.bstats:bstats-bukkit:3.0.1")
-    implementation("net.kyori:adventure-platform-bukkit:4.3.2")
-    implementation("com.tcoded:FoliaLib:0.4.2")
-
-    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     implementation("net.kyori:adventure-platform-bukkit:4.3.3")
+
+    //compileOnly("org.spigotmc:spigot-api:1.21-R0.1-SNAPSHOT")
+    compileOnly("dev.folia:folia-api:1.20.1-R0.1-SNAPSHOT")
+    compileOnlyApi("org.jetbrains:annotations:23.0.0")
 
     testImplementation("org.openjdk.jmh:jmh-core:1.32")
     testImplementation("org.openjdk.jmh:jmh-generator-annprocess:1.32")
@@ -37,12 +38,15 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
 }
 
+
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 
     withJavadocJar()
     withSourcesJar()
+
+    disableAutoTargetJvm()
 }
 
 license {
@@ -89,7 +93,6 @@ tasks {
 
         relocate("org.bstats", "me.clip.placeholderapi.metrics")
         relocate("net.kyori", "me.clip.placeholderapi.libs.kyori")
-        relocate("com.tcoded", "me.clip.placeholderapi.libs.tcoded")
 
         exclude("META-INF/versions/**")
     }

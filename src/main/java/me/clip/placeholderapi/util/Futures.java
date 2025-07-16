@@ -38,14 +38,14 @@ public final class Futures {
   private Futures() {}
 
 
-  public static <T> void onMainThread(@NotNull final Plugin plugin,
+  public static <T> void onMainThread(@NotNull final PlaceholderAPIPlugin plugin,
       @NotNull final CompletableFuture<T> future,
       @NotNull final BiConsumer<T, Throwable> consumer) {
     future.whenComplete((value, exception) -> {
       if (Bukkit.isPrimaryThread()) {
         consumer.accept(value, exception);
       } else {
-        PlaceholderAPIPlugin.getFoliaLib().getImpl().runNextTick(t -> consumer.accept(value, exception));
+        plugin.getScheduler().runTask(() -> consumer.accept(value, exception));
       }
     });
   }

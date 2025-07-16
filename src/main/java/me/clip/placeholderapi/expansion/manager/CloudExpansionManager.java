@@ -174,60 +174,65 @@ public final class CloudExpansionManager {
     plugin.getLogger().info("Fetching available expansion information...");
 
     ASYNC_EXECUTOR.submit(
-            () -> {
-              // a defence tactic! use ConcurrentHashMap instead of normal HashMap
-              Map<String, CloudExpansion> values = new ConcurrentHashMap<>();
-              try {
-                //noinspection UnstableApiUsage
-                String json = Resources.toString(new URL(API_URL), StandardCharsets.UTF_8);
-                values.putAll(GSON.fromJson(json, TYPE));
+        () -> {
+          // a defence tactic! use ConcurrentHashMap instead of normal HashMap
+          Map<String, CloudExpansion> values = new ConcurrentHashMap<>();
+          try {
+            //noinspection UnstableApiUsage
+            String json = Resources.toString(new URL(API_URL), StandardCharsets.UTF_8);
+            values.putAll(GSON.fromJson(json, TYPE));
 
-                List<String> toRemove = new ArrayList<>();
+            List<String> toRemove = new ArrayList<>();
 
-                for (Map.Entry<String, CloudExpansion> entry : values.entrySet()) {
-                  CloudExpansion expansion = entry.getValue();
-                  if (expansion.getLatestVersion() == null
-                          || expansion.getVersion(expansion.getLatestVersion()) == null) {
-                    toRemove.add(entry.getKey());
-                  }
-                }
-
-                for (String name : toRemove) {
-                  values.remove(name);
-                }
-              } catch (Throwable e) {
-                // ugly swallowing of every throwable, but we have to be defensive
-                plugin.getLogger().log(Level.WARNING, "Failed to download expansion information", e);
+            for (Map.Entry<String, CloudExpansion> entry : values.entrySet()) {
+              CloudExpansion expansion = entry.getValue();
+              if (expansion.getLatestVersion() == null
+                  || expansion.getVersion(expansion.getLatestVersion()) == null) {
+                toRemove.add(entry.getKey());
               }
+            }
 
-              //todo: Figure out why this was being scheduled back on the main thread
-              try {
-                for (Map.Entry<String, CloudExpansion> entry : values.entrySet()) {
-                  String name = entry.getKey();
-                  CloudExpansion expansion = entry.getValue();
+            for (String name : toRemove) {
+              values.remove(name);
+            }
+          } catch (Throwable e) {
+            // ugly swallowing of every throwable, but we have to be defensive
+            plugin.getLogger().log(Level.WARNING, "Failed to download expansion information", e);
+          }
 
-                  expansion.setName(name);
+          // loop through what's left on the main thread
+          plugin
+              .getScheduler()
+              .runTask(
+                  () -> {
+                    try {
+                      for (Map.Entry<String, CloudExpansion> entry : values.entrySet()) {
+                        String name = entry.getKey();
+                        CloudExpansion expansion = entry.getValue();
 
-                  Optional<PlaceholderExpansion> localOpt =
-                          plugin.getLocalExpansionManager().findExpansionByName(name);
-                  if (localOpt.isPresent()) {
-                    PlaceholderExpansion local = localOpt.get();
-                    if (local.isRegistered()) {
-                      expansion.setHasExpansion(true);
-                      expansion.setShouldUpdate(
-                              !local.getVersion().equalsIgnoreCase(expansion.getLatestVersion()));
+                        expansion.setName(name);
+
+                        Optional<PlaceholderExpansion> localOpt =
+                            plugin.getLocalExpansionManager().findExpansionByName(name);
+                        if (localOpt.isPresent()) {
+                          PlaceholderExpansion local = localOpt.get();
+                          if (local.isRegistered()) {
+                            expansion.setHasExpansion(true);
+                            expansion.setShouldUpdate(
+                                !local.getVersion().equalsIgnoreCase(expansion.getLatestVersion()));
+                          }
+                        }
+
+                        cache.put(toIndexName(expansion), expansion);
+                      }
+                    } catch (Throwable e) {
+                      // ugly swallowing of every throwable, but we have to be defensive
+                      plugin
+                          .getLogger()
+                          .log(Level.WARNING, "Failed to download expansion information", e);
                     }
-                  }
-
-                  cache.put(toIndexName(expansion), expansion);
-                }
-              } catch (Throwable e) {
-                // ugly swallowing of every throwable, but we have to be defensive
-                plugin
-                        .getLogger()
-                        .log(Level.WARNING, "Failed to download expansion information", e);
-              }
-            });
+                  });
+        });
   }
 
   public boolean isDownloading(@NotNull final CloudExpansion expansion) {
